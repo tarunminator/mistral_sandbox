@@ -1,17 +1,36 @@
-import MistralClient from '@mistralai/mistralai';
+import { RecursiveCharacterTextSplitter } from "langchain/text_splitter";
+import MistralClient from "@mistralai/mistralai";
+import { createClient } from "@supabase/supabase-js";
 
-const apiKey = process.env.MISTRAL_API_KEY;
-const client = new MistralClient(apiKey);
+const client = new MistralClient(process.env.MISTRAL_API_KEY);
+const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_API_KEY);
 
-const chatResponse = await client.chat({
-  model: 'mistral-tiny',
-  messages: [
-    {role: 'system', content: 'You are a friendly travel planning expert. When asked about planning a trip, ask me 5 questions regarding the trip before you answer. Reply with JSON'},
-    {role: 'user', content: 'Help me plan a 12 day trip to Patagonia?'}
-  ],
-  temperature: 0.5,
-  response_format: {
-        type: "json_object"
-});
+async function splitDocument(path) {
+    const response = await fetch(path);
+    const text = await response.text();
+    const splitter = new RecursiveCharacterTextSplitter({
+        chunkSize: 250,
+        chunkOverlap: 40
+    });
+    const output = await splitter.createDocuments([text]);
+    const textArr = output.map(chunk => chunk.pageContent);
+    return textArr;
+}
 
-console.log(chatResponse.choices[0].message.content);
+const sampleTripChunks = await splitDocument('sample-trip.txt');
+
+async function createEmbeddings(chunks) {
+    const embeddings = await client.embeddings({
+        model: 'mistral-embed',
+        input: chunks
+    });
+    const data = chunks.map((chunk, i) => {
+        return {
+            content: chunk,
+            embedding: embeddings.data[i].embedding
+        }
+    });
+    return data;
+}
+
+const data = await createEmbeddings(sampleTripChunks);
