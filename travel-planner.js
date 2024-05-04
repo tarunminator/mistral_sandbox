@@ -34,3 +34,5 @@ async function createEmbeddings(chunks) {
 }
 
 const data = await createEmbeddings(sampleTripChunks);
+await supabase.from('trip_docs').insert(data);
+console.log("Upload complete!");
