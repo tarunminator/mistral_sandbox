@@ -1,5 +1,6 @@
 import MistralClient from "@mistralai/mistralai";
 import { createClient } from "@supabase/supabase-js";
+import { tools } from "./tools.js";
 
 const mistralClient = new MistralClient(process.env.MISTRAL_API_KEY);
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_API_KEY);
@@ -39,3 +40,21 @@ async function generateChatResponse(context, query) {
     });
     return response.choices[0].message.content;
 }
+
+async function agent(query) {
+  const messages = [
+    { role: "user", content: query }
+  ];
+    
+  const response = await client.chat( {
+      model: 'mistral-large-latest',
+      messages: messages,
+      tools: tools
+  });
+  
+  return response;
+}
+
+const response = await agent("When was the transaction TRX004 paid?");
+
+console.log(response);
